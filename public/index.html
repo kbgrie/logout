@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Session Killer — Rack Tool</title>
+<title>Session Killer — 3TN Tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -34,6 +34,8 @@
     display: flex;
     justify-content: center;
     padding: 40px 20px;
+    /* Prevent pull-to-refresh interference while dragging on mobile */
+    overscroll-behavior-y: none; 
   }
 
   .wrap {
@@ -149,6 +151,8 @@
     justify-content: space-between;
     align-items: center;
     margin-top: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .delay-info {
@@ -220,9 +224,12 @@
   .status-fail { color: var(--error); font-weight: 600; }
   .status-info { color: var(--accent); font-weight: 600; }
 
-      .discord-float {
+  /* Draggable Discord Floating Button */
+  .discord-float {
     position: fixed;
-    /* Bỏ top, right, bottom ở đây vì JS đã đảm nhận */
+    /* Default starting position: top right */
+    top: 24px;
+    right: 24px;
     width: 56px;
     height: 56px;
     background-color: #18181b;
@@ -231,22 +238,31 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: grab;
+    /* touch-action prevents browser scrolling while dragging */
+    touch-action: none; 
+    transition: transform 0.1s, border-color 0.2s, background-color 0.2s;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     z-index: 100;
+    user-select: none;
+    -webkit-user-select: none;
   }
+
+  .discord-float:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+  }
+
   .discord-float svg {
     width: 28px;
     height: 28px;
     fill: var(--text-dim);
     transition: fill 0.3s;
+    pointer-events: none; /* prevents svg from capturing drag events */
   }
 
   .discord-float:hover {
     border-color: var(--discord);
-    transform: scale(1.1) translateY(4px); /* Đổi thành 4px để nảy xuống dưới cho tự nhiên */
-    box-shadow: 0 8px 24px rgba(88, 101, 242, 0.3);
     background-color: var(--discord);
   }
 
@@ -290,8 +306,8 @@
   </div>
 </div>
 
-<!-- Discord Join Button -->
-<a href="https://discord.gg/Cdcmpqfz5k" target="_blank" rel="noopener noreferrer" class="discord-float" id="discord-btn" title="Join Discord Server">
+<!-- Draggable Discord Button -->
+<a id="discord-btn" href="https://discord.gg/Cdcmpqfz5k" target="_blank" rel="noopener noreferrer" class="discord-float" title="Join Discord Server">
   <svg viewBox="0 0 127.14 96.36" xmlns="http://www.w3.org/2000/svg">
     <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
   </svg>
@@ -305,6 +321,112 @@ const btnGo = $('go');
 const fileInput = $('file-input');
 const dropZone = $('drop-zone');
 
+// --- Kéo thả Discord Button Logic ---
+const discordBtn = $('discord-btn');
+let isDragging = false;
+let dragStartX, dragStartY;
+let startLeft, startTop;
+let hasMoved = false;
+
+// Khôi phục vị trí cũ từ localStorage
+const savedPos = localStorage.getItem('discord_btn_pos');
+if (savedPos) {
+  try {
+    const { x, y } = JSON.parse(savedPos);
+    discordBtn.style.left = x + 'px';
+    discordBtn.style.top = y + 'px';
+    discordBtn.style.right = 'auto'; // Xóa right mặc định
+  } catch (e) {}
+}
+
+discordBtn.addEventListener('pointerdown', (e) => {
+  // Chỉ chuột trái hoặc chạm
+  if (e.button !== 0) return; 
+
+  isDragging = true;
+  hasMoved = false;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+
+  // Lấy tọa độ hiện tại của nút
+  const rect = discordBtn.getBoundingClientRect();
+  startLeft = rect.left;
+  startTop = rect.top;
+
+  // Set cứng tọa độ bằng left/top để dễ tính toán
+  discordBtn.style.left = startLeft + 'px';
+  discordBtn.style.top = startTop + 'px';
+  discordBtn.style.right = 'auto';
+  discordBtn.style.cursor = 'grabbing';
+  
+  // Bắt sự kiện ra ngoài phần tử
+  discordBtn.setPointerCapture(e.pointerId);
+});
+
+discordBtn.addEventListener('pointermove', (e) => {
+  if (!isDragging) return;
+
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+
+  // Đánh dấu đã kéo nếu di chuyển quá 3px (tránh click nhầm)
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    hasMoved = true;
+  }
+
+  let newLeft = startLeft + dx;
+  let newTop = startTop + dy;
+
+  // Giới hạn không cho kéo ra ngoài màn hình
+  const maxLeft = window.innerWidth - discordBtn.offsetWidth;
+  const maxTop = window.innerHeight - discordBtn.offsetHeight;
+
+  newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+  newTop = Math.max(0, Math.min(newTop, maxTop));
+
+  discordBtn.style.left = newLeft + 'px';
+  discordBtn.style.top = newTop + 'px';
+});
+
+discordBtn.addEventListener('pointerup', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+  discordBtn.style.cursor = 'grab';
+
+  // Lưu vị trí
+  const rect = discordBtn.getBoundingClientRect();
+  localStorage.setItem('discord_btn_pos', JSON.stringify({
+    x: rect.left,
+    y: rect.top
+  }));
+});
+
+discordBtn.addEventListener('click', (e) => {
+  // Nếu người dùng đã kéo nút, chặn sự kiện click (không mở Discord)
+  if (hasMoved) {
+    e.preventDefault();
+    return;
+  }
+  // Nếu chỉ click bình thường, nó sẽ tự động chạy href
+});
+
+// Đảm bảo nếu người dùng xoay màn hình hoặc resize, nút không bị kẹt ngoài lề
+window.addEventListener('resize', () => {
+  const rect = discordBtn.getBoundingClientRect();
+  const maxLeft = window.innerWidth - discordBtn.offsetWidth;
+  const maxTop = window.innerHeight - discordBtn.offsetHeight;
+  
+  let newLeft = Math.min(rect.left, maxLeft);
+  let newTop = Math.min(rect.top, maxTop);
+  
+  if (rect.left > maxLeft || rect.top > maxTop) {
+    discordBtn.style.left = Math.max(0, newLeft) + 'px';
+    discordBtn.style.top = Math.max(0, newTop) + 'px';
+  }
+});
+// --- Hết logic kéo thả ---
+
+// Logic App
 function updateCount() {
   const lines = inputEl.value.split('\n').map(l => l.trim()).filter(Boolean);
   countEl.textContent = `${lines.length} accounts`;
@@ -312,87 +434,7 @@ function updateCount() {
 }
 
 inputEl.addEventListener('input', updateCount);
-  // --- THÊM LOGIC KÉO THẢ CHO NÚT DISCORD ---
-const discordBtn = document.getElementById('discord-btn');
-let isDragging = false;
-let hasDragged = false;
-let startX, startY, initialLeft, initialTop;
-  // Thiết lập vị trí ban đầu bằng JS để dễ tính toán
-discordBtn.style.left = (window.innerWidth - 80) + 'px';
-discordBtn.style.top = '24px';
-discordBtn.style.bottom = 'auto'; // Xóa bottom
-discordBtn.style.right = 'auto';  // Xóa right
-discordBtn.style.transition = 'transform 0.2s, background-color 0.2s, border-color 0.2s'; // Bỏ transition của left/top để kéo mượt
 
-discordBtn.addEventListener('mousedown', (e) => {
-  isDragging = true;
-  hasDragged = false;
-  startX = e.clientX;
-  startY = e.clientY;
-  
-  const rect = discordBtn.getBoundingClientRect();
-  initialLeft = rect.left;
-  initialTop = rect.top;
-  
-  discordBtn.style.transition = 'none'; // Tắt transition để kéo không bị trễ
-  discordBtn.style.cursor = 'grabbing';
-  document.body.style.userSelect = 'none'; // Tránh bôi đen text khi kéo
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  
-  const dx = e.clientX - startX;
-  const dy = e.clientY - startY;
-  
-  // Ngưỡng 5px để phân biệt click và kéo
-  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-    hasDragged = true;
-  }
-  
-  if (hasDragged) {
-    let newLeft = initialLeft + dx;
-    let newTop = initialTop + dy;
-    
-    // Giới hạn không cho kéo ra khỏi màn hình
-    const maxLeft = window.innerWidth - discordBtn.offsetWidth;
-    const maxTop = window.innerHeight - discordBtn.offsetHeight;
-    
-    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-    newTop = Math.max(0, Math.min(newTop, maxTop));
-    
-    discordBtn.style.left = newLeft + 'px';
-    discordBtn.style.top = newTop + 'px';
-  }
-});
-
-document.addEventListener('mouseup', () => {
-  if (isDragging) {
-    isDragging = false;
-    discordBtn.style.transition = 'transform 0.2s, background-color 0.2s, border-color 0.2s';
-    discordBtn.style.cursor = 'pointer';
-    document.body.style.userSelect = '';
-  }
-});
-
-// Ngăn chặn mở link nếu người dùng đang kéo
-discordBtn.addEventListener('click', (e) => {
-  if (hasDragged) {
-    e.preventDefault();
-  }
-});
-
-// Xử lý khi resize cửa sổ (giữ nút không bị mất)
-window.addEventListener('resize', () => {
-  const rect = discordBtn.getBoundingClientRect();
-  if (rect.right > window.innerWidth) {
-    discordBtn.style.left = (window.innerWidth - discordBtn.offsetWidth) + 'px';
-  }
-  if (rect.bottom > window.innerHeight) {
-    discordBtn.style.top = (window.innerHeight - discordBtn.offsetHeight) + 'px';
-  }
-});
-// Handle Drag & Drop
 dropZone.addEventListener('dragover', (e) => {
   e.preventDefault();
   dropZone.classList.add('dragover');
