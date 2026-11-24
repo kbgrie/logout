@@ -92,12 +92,12 @@ async function validateCookie(cookieRaw) {
 }
 
 app.post('/api/logout', async (req, res) => {
-  const { accounts, delayMs } = req.body;
+  const { accounts } = req.body;
   if (!Array.isArray(accounts) || accounts.length === 0) {
     return res.status(400).json({ error: 'no accounts provided' });
   }
 
-  const delay = Math.max(500, Math.min(parseInt(delayMs) || 3000, 60000));
+  const delay = 1000; 
   const results = [];
 
   for (let i = 0; i < accounts.length; i++) {
