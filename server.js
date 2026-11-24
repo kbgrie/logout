@@ -78,16 +78,27 @@ async function validateCookie(cookieRaw) {
     const r = await fetch('https://users.roblox.com/v1/users/authenticated', {
       headers: {
         'Cookie': `.ROBLOSECURITY=${cookie}`,
-        'User-Agent': 'Mozilla/5.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': 'application/json'
       },
     });
+    
     if (r.status === 200) {
       const j = await r.json();
       return { alive: true, user: j.name, id: j.id };
+    } 
+    
+    // 401 = Unauthorized (Cookie chết/hết hạn)
+    // 403 = Forbidden (Cookie bị revoke)
+    if (r.status === 401 || r.status === 403) {
+      return { alive: false, status: r.status, reason: 'Unauthorized/Revoked' };
     }
-    return { alive: false, status: r.status };
+
+    // Các lỗi khác (429 Rate limit, 500 Server error...)
+    return { alive: false, status: r.status, reason: 'Request failed' };
+    
   } catch (e) {
-    return { alive: false, error: e.message };
+    return { alive: false, status: 0, reason: e.message };
   }
 }
 
@@ -117,11 +128,12 @@ app.post('/api/logout', async (req, res) => {
       validate = await validateCookie(cookie);
     }
 
-    results.push({
+      results.push({
       line: i + 1,
       user,
       kill,
       cookieAlive: validate ? validate.alive : false,
+      cookieStatus: validate ? validate.status : null, // Thêm dòng này
       robloxUser: validate?.user || null,
       robloxId: validate?.id || null,
     });
