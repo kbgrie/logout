@@ -1,0 +1,151 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rack — Session Killer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    background: #0a0a0f;
+    color: #d4d4d8;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 {
+    color: #22d3ee;
+    font-size: 22px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .sub { color: #71717a; font-size: 12px; margin-bottom: 24px; }
+  textarea {
+    width: 100%;
+    height: 240px;
+    background: #111118;
+    color: #e4e4e7;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  textarea:focus { outline: none; border-color: #22d3ee; }
+  .row { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+  label { font-size: 12px; color: #a1a1aa; }
+  input[type=number] {
+    background: #111118;
+    color: #e4e4e7;
+    border: 1px solid #27272a;
+    border-radius: 4px;
+    padding: 8px 10px;
+    width: 120px;
+    font-family: inherit;
+  }
+  button {
+    background: #22d3ee;
+    color: #0a0a0f;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.15s;
+  }
+  button:hover { background: #06b6d4; }
+  button:disabled { background: #3f3f46; color: #71717a; cursor: not-allowed; }
+  #log {
+    margin-top: 24px;
+    background: #111118;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    padding: 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    max-height: 500px;
+    overflow-y: auto;
+    display: none;
+  }
+  .ok { color: #22c55e; }
+  .fail { color: #ef4444; }
+  .info { color: #22d3ee; }
+  .dim { color: #71717a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Session Killer</h1>
+  <div class="sub">user:pass:cookie — mỗi dòng 1 tài khoản. Session chết, cookie sống. Không 2FA.</div>
+
+  <textarea id="input" placeholder="user1:pass1:.ROBLOSECURITY_xxx&#10;user2:pass2:.ROBLOSECURITY_yyy&#10;user3:pass3:.ROBLOSECURITY_zzz"></textarea>
+
+  <div class="row">
+    <label>Delay (ms, tối thiểu 500):</label>
+    <input type="number" id="delay" value="3000" min="500" max="60000" step="500">
+    <button id="go">Kill All Sessions</button>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+$('go').onclick = async () => {
+  const raw = $('input').value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (raw.length === 0) {
+    alert('Chưa có tài khoản nào.');
+    return;
+  }
+  const delayMs = parseInt($('delay').value) || 3000;
+  const log = $('log');
+  log.style.display = 'block';
+  log.innerHTML = `<span class="info">[rack] bắt đầu xử lý ${raw.length} tài khoản, delay ${delayMs}ms...</span>\n`;
+  $('go').disabled = true;
+
+  try {
+    const res = await fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: raw, delayMs }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      log.innerHTML += `<span class="fail">[error] ${data.error}</span>\n`;
+      $('go').disabled = false;
+      return;
+    }
+    for (const r of data.results) {
+      let line = `<span class="dim">[${r.line}]</span> ${r.user || '?'} → `;
+      if (r.kill.ok) {
+        line += `<span class="ok">session killed</span>`;
+        if (r.cookieAlive) {
+          line += ` · <span class="ok">cookie ALIVE (${r.robloxUser} / ${r.robloxId})</span>`;
+        } else {
+          line += ` · <span class="fail">cookie dead / not validated</span>`;
+        }
+      } else {
+        line += `<span class="fail">FAIL: ${r.kill.error}</span>`;
+      }
+      log.innerHTML += line + '\n';
+    }
+    log.innerHTML += `<span class="info">[rack] xong. delay dùng: ${data.delayUsed}ms</span>\n`;
+  } catch (e) {
+    log.innerHTML += `<span class="fail">[network] ${e.message}</span>\n`;
+  }
+  $('go').disabled = false;
+};
+</script>
+</body>
+</html>
