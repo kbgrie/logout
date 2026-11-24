@@ -49,11 +49,11 @@ async function killSession(cookieRaw) {
       return { ok: true, note: 'signout returned 200, session killed, cookie preserved' };
     }
   } catch (e) {
-    return { ok: false, error: 'csrf fetch failed: ' + e.message };
+    return { ok: false, error: 'Cookie Fetch Failed: ' + e.message };
   }
 
   if (!csrf) {
-    return { ok: false, error: 'no csrf token returned' };
+    return { ok: false, error: 'No Cookie returned' };
   }
 
   // Step 2: POST signout WITH csrf — kills session, does NOT clear cookie
