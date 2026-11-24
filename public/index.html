@@ -3,147 +3,357 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rack — Session Killer</title>
+<title>Session Killer — Rack Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg: #09090b;
+    --panel: rgba(24, 24, 27, 0.6);
+    --border: rgba(63, 63, 70, 0.6);
+    --text: #f4f4f5;
+    --text-dim: #a1a1aa;
+    --accent: #06b6d4;
+    --accent-glow: rgba(6, 182, 212, 0.2);
+    --success: #10b981;
+    --error: #ef4444;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    background: #0a0a0f;
-    color: #d4d4d8;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg);
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.05), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.05), transparent 25%);
+    color: var(--text);
     min-height: 100vh;
+    display: flex;
+    justify-content: center;
     padding: 40px 20px;
   }
-  .wrap { max-width: 900px; margin: 0 auto; }
-  h1 {
-    color: #22d3ee;
-    font-size: 22px;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-    text-transform: uppercase;
+
+  .wrap {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
-  .sub { color: #71717a; font-size: 12px; margin-bottom: 24px; }
+
+  .header {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Fira Code', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  h1 span.hl {
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-top: 8px;
+    font-family: 'Fira Code', monospace;
+    background: var(--panel);
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .sub span { color: var(--accent); }
+
+  .panel {
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
   textarea {
     width: 100%;
-    height: 240px;
-    background: #111118;
-    color: #e4e4e7;
-    border: 1px solid #27272a;
-    border-radius: 6px;
-    padding: 14px;
-    font-family: inherit;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Fira Code', monospace;
     font-size: 13px;
     line-height: 1.6;
     resize: vertical;
+    transition: border-color 0.2s;
   }
-  textarea:focus { outline: none; border-color: #22d3ee; }
-  .row { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
-  label { font-size: 12px; color: #a1a1aa; }
-  input[type=number] {
-    background: #111118;
-    color: #e4e4e7;
-    border: 1px solid #27272a;
-    border-radius: 4px;
-    padding: 8px 10px;
-    width: 120px;
-    font-family: inherit;
+
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
   }
-  button {
-    background: #22d3ee;
-    color: #0a0a0f;
-    border: none;
-    padding: 10px 22px;
-    border-radius: 6px;
-    font-family: inherit;
-    font-weight: bold;
-    font-size: 13px;
-    letter-spacing: 1px;
+
+  .file-drop {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
     cursor: pointer;
-    text-transform: uppercase;
-    transition: background 0.15s;
+    transition: all 0.2s;
+    background: rgba(0,0,0,0.2);
+    color: var(--text-dim);
+    font-size: 13px;
   }
-  button:hover { background: #06b6d4; }
-  button:disabled { background: #3f3f46; color: #71717a; cursor: not-allowed; }
-  #log {
-    margin-top: 24px;
-    background: #111118;
-    border: 1px solid #27272a;
-    border-radius: 6px;
-    padding: 16px;
+
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(6, 182, 212, 0.05);
+  }
+
+  .file-drop input { display: none; }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .delay-info {
+    font-family: 'Fira Code', monospace;
     font-size: 12px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    max-height: 500px;
-    overflow-y: auto;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .delay-info .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--success);
+  }
+
+  button#go {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  button#go:hover {
+    background: #22d3ee;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  button#go:disabled {
+    background: #3f3f46;
+    color: var(--text-dim);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  #log-container {
     display: none;
   }
-  .ok { color: #22c55e; }
-  .fail { color: #ef4444; }
-  .info { color: #22d3ee; }
-  .dim { color: #71717a; }
+
+  #log {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .log-line { margin-bottom: 4px; }
+  .log-line .time { color: var(--text-dim); margin-right: 8px; }
+  .log-line .idx { color: var(--accent); margin-right: 8px; }
+  
+  .status-ok { color: var(--success); font-weight: 600; }
+  .status-fail { color: var(--error); font-weight: 600; }
+  .status-info { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Session Killer</h1>
-  <div class="sub">user:pass:cookie — mỗi dòng 1 tài khoản. Session chết, cookie sống. Không 2FA.</div>
-
-  <textarea id="input" placeholder="user1:pass1:.ROBLOSECURITY_xxx&#10;user2:pass2:.ROBLOSECURITY_yyy&#10;user3:pass3:.ROBLOSECURITY_zzz"></textarea>
-
-  <div class="row">
-    <label>Delay (ms, tối thiểu 500):</label>
-    <input type="number" id="delay" value="3000" min="500" max="60000" step="500">
-    <button id="go">Kill All Sessions</button>
+  <div class="header">
+    <h1><span class="hl">[#]</span> SESSION KILLER</h1>
+    <div class="sub">Format: <span>user:pass:cookie</span> (Hỗ trợ nhiều dòng)</div>
   </div>
 
-  <div id="log"></div>
+  <div class="panel">
+    <div class="panel-header">
+      <span>Input Accounts</span>
+      <span id="acc-count">0 accounts</span>
+    </div>
+    
+    <textarea id="input" placeholder="user1:pass1:.ROBLOSECURITY_xxx&#10;user2:pass2:.ROBLOSECURITY_yyy"></textarea>
+
+    <label class="file-drop" id="drop-zone">
+      <input type="file" id="file-input" accept=".txt">
+      <div>[ Kéo thả file .txt vào đây hoặc Click để chọn ]</div>
+    </label>
+
+    <div class="row">
+      <div class="delay-info">
+        <div class="dot"></div>
+        Fixed delay: 1s / account
+      </div>
+      <button id="go" disabled>Chạy Kill Sessions</button>
+    </div>
+  </div>
+
+  <div id="log-container" class="panel" style="padding: 16px;">
+    <div class="panel-header" style="margin-bottom: 8px;">Console Logs</div>
+    <div id="log"></div>
+  </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+const inputEl = $('input');
+const countEl = $('acc-count');
+const btnGo = $('go');
+const fileInput = $('file-input');
+const dropZone = $('drop-zone');
 
-$('go').onclick = async () => {
-  const raw = $('input').value.split('\n').map(l => l.trim()).filter(Boolean);
-  if (raw.length === 0) {
-    alert('Chưa có tài khoản nào.');
-    return;
+function updateCount() {
+  const lines = inputEl.value.split('\n').map(l => l.trim()).filter(Boolean);
+  countEl.textContent = `${lines.length} accounts`;
+  btnGo.disabled = lines.length === 0;
+}
+
+inputEl.addEventListener('input', updateCount);
+
+// Handle Drag & Drop
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    handleFile(e.dataTransfer.files[0]);
   }
-  const delayMs = parseInt($('delay').value) || 3000;
-  const log = $('log');
-  log.style.display = 'block';
-  log.innerHTML = `<span class="info">[rack] bắt đầu xử lý ${raw.length} tài khoản, delay ${delayMs}ms...</span>\n`;
-  $('go').disabled = true;
+});
+
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const content = e.target.result;
+    // Append to existing text, separated by newline
+    const current = inputEl.value.trim();
+    inputEl.value = current ? current + '\n' + content.trim() : content.trim();
+    updateCount();
+  };
+  reader.readAsText(file);
+}
+
+function logHTML(html) {
+  const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+  $('log').innerHTML += `<div class="log-line"><span class="time">[${time}]</span>${html}</div>`;
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+btnGo.onclick = async () => {
+  const raw = inputEl.value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (raw.length === 0) return;
+
+  $('log-container').style.display = 'block';
+  $('log').innerHTML = '';
+  btnGo.disabled = true;
+  btnGo.innerHTML = 'Đang xử lý...';
+
+  logHTML(`<span class="status-info">[SYS]</span> Bắt đầu xử lý ${raw.length} tài khoản...`);
+  logHTML(`<span class="status-info">[SYS]</span> Delay mặc định: 1000ms / account.`);
 
   try {
     const res = await fetch('/api/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accounts: raw, delayMs }),
+      body: JSON.stringify({ accounts: raw }), // Không gửi delay, backend tự lo
     });
     const data = await res.json();
+    
     if (data.error) {
-      log.innerHTML += `<span class="fail">[error] ${data.error}</span>\n`;
-      $('go').disabled = false;
-      return;
-    }
-    for (const r of data.results) {
-      let line = `<span class="dim">[${r.line}]</span> ${r.user || '?'} → `;
-      if (r.kill.ok) {
-        line += `<span class="ok">session killed</span>`;
-        if (r.cookieAlive) {
-          line += ` · <span class="ok">cookie ALIVE (${r.robloxUser} / ${r.robloxId})</span>`;
+      logHTML(`<span class="status-fail">[ERROR]</span> ${data.error}`);
+    } else {
+      for (const r of data.results) {
+        let line = `<span class="idx">[${r.line}]</span> <b>${r.user || '?'}</b> → `;
+        if (r.kill.ok) {
+          line += `<span class="status-ok">SESSION KILLED</span>`;
+          if (r.cookieAlive) {
+            line += ` · <span class="status-ok">COOKIE ALIVE (${r.robloxUser} / ${r.robloxId})</span>`;
+          } else {
+            line += ` · <span class="status-fail">COOKIE DEAD</span>`;
+          }
         } else {
-          line += ` · <span class="fail">cookie dead / not validated</span>`;
+          line += `<span class="status-fail">FAIL: ${r.kill.error}</span>`;
         }
-      } else {
-        line += `<span class="fail">FAIL: ${r.kill.error}</span>`;
+        logHTML(line);
       }
-      log.innerHTML += line + '\n';
+      logHTML(`<span class="status-info">[SYS]</span> Hoàn tất.`);
     }
-    log.innerHTML += `<span class="info">[rack] xong. delay dùng: ${data.delayUsed}ms</span>\n`;
   } catch (e) {
-    log.innerHTML += `<span class="fail">[network] ${e.message}</span>\n`;
+    logHTML(`<span class="status-fail">[NETWORK]</span> ${e.message}`);
   }
-  $('go').disabled = false;
+  
+  btnGo.innerHTML = 'Chạy Kill Sessions';
+  updateCount();
 };
 </script>
 </body>
