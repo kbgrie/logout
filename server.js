@@ -53,7 +53,7 @@ async function killSession(cookieRaw) {
   }
 
   if (!csrf) {
-    return { ok: false, error: 'No Cookie returned' };
+    return { ok: false, error: 'Cookie die - get new Cookie' };
   }
 
   // Step 2: POST signout WITH csrf — kills session, does NOT clear cookie
