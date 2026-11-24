@@ -491,21 +491,27 @@ btnGo.onclick = async () => {
     });
     const data = await res.json();
     
-    if (data.error) {
+        if (data.error) {
       logHTML(`<span class="status-fail">[ERROR]</span> ${data.error}`);
     } else {
       for (const r of data.results) {
         let line = `<span class="idx">[${r.line}]</span> <b>${r.user || '?'}</b> → `;
+        
         if (r.kill.ok) {
           line += `<span class="status-ok">SESSION KILLED</span>`;
+          
+          // Kiểm tra trạng thái cookie
           if (r.cookieAlive) {
             line += ` · <span class="status-ok">COOKIE ALIVE (${r.robloxUser} / ${r.robloxId})</span>`;
           } else {
-            line += ` · <span class="status-fail">COOKIE DEAD</span>`;
+            // Cookie chết hoặc không xác thực được
+            line += ` · <span class="status-fail">COOKIE DIED (Invalid/Expired)</span>`;
           }
         } else {
-          line += `<span class="status-fail">FAIL: ${r.kill.error}</span>`;
+          // Lỗi trong quá trình kill session
+          line += `<span class="status-fail">KILL FAILED: ${r.kill.error}</span>`;
         }
+        
         logHTML(line);
       }
       logHTML(`<span class="status-info">[SYS]</span> Hoàn tất.`);
