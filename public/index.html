@@ -317,7 +317,81 @@ const discordBtn = document.getElementById('discord-btn');
 let isDragging = false;
 let hasDragged = false;
 let startX, startY, initialLeft, initialTop;
+  // Thiết lập vị trí ban đầu bằng JS để dễ tính toán
+discordBtn.style.left = (window.innerWidth - 80) + 'px';
+discordBtn.style.top = '24px';
+discordBtn.style.bottom = 'auto'; // Xóa bottom
+discordBtn.style.right = 'auto';  // Xóa right
+discordBtn.style.transition = 'transform 0.2s, background-color 0.2s, border-color 0.2s'; // Bỏ transition của left/top để kéo mượt
 
+discordBtn.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  hasDragged = false;
+  startX = e.clientX;
+  startY = e.clientY;
+  
+  const rect = discordBtn.getBoundingClientRect();
+  initialLeft = rect.left;
+  initialTop = rect.top;
+  
+  discordBtn.style.transition = 'none'; // Tắt transition để kéo không bị trễ
+  discordBtn.style.cursor = 'grabbing';
+  document.body.style.userSelect = 'none'; // Tránh bôi đen text khi kéo
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  
+  const dx = e.clientX - startX;
+  const dy = e.clientY - startY;
+  
+  // Ngưỡng 5px để phân biệt click và kéo
+  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+    hasDragged = true;
+  }
+  
+  if (hasDragged) {
+    let newLeft = initialLeft + dx;
+    let newTop = initialTop + dy;
+    
+    // Giới hạn không cho kéo ra khỏi màn hình
+    const maxLeft = window.innerWidth - discordBtn.offsetWidth;
+    const maxTop = window.innerHeight - discordBtn.offsetHeight;
+    
+    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+    newTop = Math.max(0, Math.min(newTop, maxTop));
+    
+    discordBtn.style.left = newLeft + 'px';
+    discordBtn.style.top = newTop + 'px';
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (isDragging) {
+    isDragging = false;
+    discordBtn.style.transition = 'transform 0.2s, background-color 0.2s, border-color 0.2s';
+    discordBtn.style.cursor = 'pointer';
+    document.body.style.userSelect = '';
+  }
+});
+
+// Ngăn chặn mở link nếu người dùng đang kéo
+discordBtn.addEventListener('click', (e) => {
+  if (hasDragged) {
+    e.preventDefault();
+  }
+});
+
+// Xử lý khi resize cửa sổ (giữ nút không bị mất)
+window.addEventListener('resize', () => {
+  const rect = discordBtn.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    discordBtn.style.left = (window.innerWidth - discordBtn.offsetWidth) + 'px';
+  }
+  if (rect.bottom > window.innerHeight) {
+    discordBtn.style.top = (window.innerHeight - discordBtn.offsetHeight) + 'px';
+  }
+});
 // Handle Drag & Drop
 dropZone.addEventListener('dragover', (e) => {
   e.preventDefault();
